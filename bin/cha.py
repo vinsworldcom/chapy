@@ -47,38 +47,58 @@ class _Version(argparse.Action):
 
 class ComposeTool(object):
 
-    def __init__(self):
+    def __init__(self, args):
+
+        # First defaults
+        myenv = {
+            'CHAPY_DEFFILE': 'config.json',
+            'CHAPY_DOCKYML': 'docker-compose.yml',
+            'CHAPY_ALLSERV': "{{ALL}}",
+            'CHAPY_HOSTSRV': "{{HOST}}",
+            'CHAPY_INDENTS': "4",
+            'CHAPY_ISPACER': "=",
+            'COMPOSE_PROJECT_NAME': ""
+        }
+        myenv['CHAPY_OUTHEAD'] = myenv['CHAPY_ISPACER'] + "> "
+
+        # Override defaults with .env file
+        self._envfile(myenv)
+        # Sync local and os.environ, os.environ overrides
+        for k in sorted(myenv):
+            if k in os.environ:
+                myenv[k] = os.environ[k]
+            else:
+                os.environ[k] = myenv[k]
+        # Add any DOCKER_ os.environ to local env
+        for k in sorted(os.environ):
+            if k.startswith("DOCKER_"):
+                myenv[k] = os.environ[k]
+
+        # args.environment print here in case bad DOCKER_* variable
+        # which errors out on `docker.from_env()`
+        if args.environment:
+            print(json.dumps(myenv, sort_keys=True, indent=int(os.environ['CHAPY_INDENTS'])))
+            exit()
+
+        client = docker.from_env()
         args = {}
+        if os.environ['COMPOSE_PROJECT_NAME']:
+            args = {'name': os.environ['COMPOSE_PROJECT_NAME']}
+        self.containers = client.containers.list(filters=args)
+        self.env = myenv
 
-        if 'CHAPY_DEFFILE' not in os.environ:
-            os.environ['CHAPY_DEFFILE'] = 'config.json'
-        if 'CHAPY_DOCKYML' not in os.environ:
-            os.environ['CHAPY_DOCKYML'] = 'docker-compose.yml'
-        if 'CHAPY_ALLSERV' not in os.environ:
-            os.environ['CHAPY_ALLSERV'] = "{{ALL}}"
-        if 'CHAPY_HOSTSRV' not in os.environ:
-            os.environ['CHAPY_HOSTSRV'] = "{{HOST}}"
-        if 'CHAPY_INDENTS' not in os.environ:
-            os.environ['CHAPY_INDENTS'] = "4"
-        if 'CHAPY_ISPACER' not in os.environ:
-            os.environ['CHAPY_ISPACER'] = "="
-        if 'CHAPY_OUTHEAD' not in os.environ:
-            os.environ['CHAPY_OUTHEAD'] = os.environ['CHAPY_ISPACER'] + "> "
-
+    def _envfile(self, output):
         try:
             f = open(ENVFILE, "r")
             for line in f:
                 if line.startswith("#") or not line.strip():
                     continue
                 k,v = line.strip('\n').split("=", 1)
-                os.environ[k] = v
-            if 'COMPOSE_PROJECT_NAME' in os.environ:
-                args = {'name': os.environ['COMPOSE_PROJECT_NAME']}
+                if k not in os.environ:
+                    output[k] = os.environ[k] = v
         except FileNotFoundError:
             print(".env file not found", file=sys.stderr)
-
-        client = docker.from_env()
-        self.containers = client.containers.list(filters=args)
+        return output
 
     def _list(self, filter=""):
         cs = []
@@ -137,18 +157,9 @@ class ComposeTool(object):
             config[stage] = services
         return config
 
-    def environment(self, args):
-        output = ''
-        for k in sorted(os.environ):
-            if k.startswith("CHAPY_") or k.startswith("DOCKER") or k == "COMPOSE_PROJECT_NAME":
-                output += f"{k} = {os.environ[k]}\n"
-        if "COMPOSE_PROJECT_NAME" not in output:
-            output = "COMPOSE_PROJECT_NAME = \n" + output
-        print(output)
-
     def run(self, args, config):
         self._do_stages(args, config)
-        
+
     def _do_stages(self, args, config):
         for stage in args.stages:
             if args.verbose >= 2: self._log(f"Stage: {stage}")
@@ -291,7 +302,7 @@ def main():
     )
     args = parser.parse_args()
 
-    composeTool = ComposeTool()
+    composeTool = ComposeTool(args)
 
     ### RUN
     args.stages = list(args.stages.split(","))
@@ -307,10 +318,6 @@ def main():
 
     if args.config:
         print(json.dumps(composeTool.config(args), indent=int(os.environ['CHAPY_INDENTS'])))
-        exit()
-
-    if args.environment:
-        composeTool.environment(args)
         exit()
 
     if args.dryrun:

@@ -48,7 +48,6 @@ class _Version(argparse.Action):
 class ComposeTool(object):
 
     def __init__(self):
-        client = docker.from_env()
         args = {}
 
         if 'CHAPY_DEFFILE' not in os.environ:
@@ -77,6 +76,8 @@ class ComposeTool(object):
                 args = {'name': os.environ['COMPOSE_PROJECT_NAME']}
         except FileNotFoundError:
             print(".env file not found", file=sys.stderr)
+
+        client = docker.from_env()
         self.containers = client.containers.list(filters=args)
 
     def _list(self, filter=""):
@@ -139,7 +140,7 @@ class ComposeTool(object):
     def environment(self, args):
         output = ''
         for k in sorted(os.environ):
-            if k.startswith("CHAPY_") or k == "COMPOSE_PROJECT_NAME":
+            if k.startswith("CHAPY_") or k.startswith("DOCKER") or k == "COMPOSE_PROJECT_NAME":
                 output += f"{k} = {os.environ[k]}\n"
         if "COMPOSE_PROJECT_NAME" not in output:
             output = "COMPOSE_PROJECT_NAME = \n" + output

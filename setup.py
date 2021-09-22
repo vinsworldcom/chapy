@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name             = 'chapy',
-    version          = '1.0',
+    version          = '1.1',
     description      = 'Docker Compose Helper and Automation Tool.',
     url              = 'https://github.com/vinsworldcom/chapy.git',
     author           = 'Michael Vincent',

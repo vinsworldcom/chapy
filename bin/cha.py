@@ -243,7 +243,11 @@ class ComposeTool(object):
 
 def main():
     """Main Program."""
-    parser = argparse.ArgumentParser(description='Usage:')
+    parser = argparse.ArgumentParser(description="""
+        Compose helper and automtion Python script performs commands in 
+        container groups according to a staged configuration file or from 
+        command line input.
+    """)
     parser.add_argument('-C', '--config',
         action  = 'store_true',
         help    = "create example config"

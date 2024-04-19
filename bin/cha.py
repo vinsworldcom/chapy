@@ -193,7 +193,7 @@ class ComposeTool(object):
                 t.join()
 
     def _do_hosts(self, args, stage, service, filter):
-        if service == os.environ['CHAPY_HOSTSRV']:
+        if service == os.environ['CHAPY_HOSTSRV'] or service == 'localhost':
             for cmd in stage[service]:
                 if args.verbose >= 2: self._log(f"Command: {cmd}", 6)
                 if args.daemon:
@@ -203,7 +203,7 @@ class ComposeTool(object):
                         if args.verbose >= 1: print(e)
                 else:
                     try:
-                        output = subprocess.check_output(cmd.split(" "), stderr=subprocess.STDOUT)
+                        output = subprocess.check_output(cmd.split(" "), stderr=subprocess.STDOUT, shell=True)
                         if args.verbose >= 1: print(output.decode('utf8').strip('\n'))
                     except subprocess.CalledProcessError as e:
                         if args.verbose >= 1: print(e.output.decode('utf8').strip('\n'))
@@ -229,7 +229,7 @@ class ComposeTool(object):
                 if args.daemon:
                     output = c.exec_run(cmd, detach=True)
                 else:
-                    output = c.exec_run(cmd)
+                    output = c.exec_run(['sh', '-c', cmd])
                     if args.verbose >= 1: print(output.output.decode('utf8').strip('\n'))
 
     def _parse_cmd(self, cmd):
@@ -243,7 +243,12 @@ class ComposeTool(object):
 
 def main():
     """Main Program."""
-    parser = argparse.ArgumentParser(description='Usage:')
+    parser = argparse.ArgumentParser(description=
+    """
+    Compose helper and automtion Python script performs commands in
+    container groups according to a staged configuration file or from
+    command line input.
+    """)
     parser.add_argument('-C', '--config',
         action  = 'store_true',
         help    = "create example config"

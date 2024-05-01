@@ -177,9 +177,13 @@ class ComposeTool(object):
             elif args.filter:
                 filter = args.filter
 
+            display_service = service
             if args.composev1:
                 filter = filter.replace('-', '_')
                 display_service = service.replace('-', '_')
+            if args.composev2:
+                filter = filter.replace('_', '-')
+                display_service = service.replace('_', '-')
 
             if not len(self._list(filter)):
                 self._log("Service: none matched!", 2)
@@ -281,9 +285,13 @@ def main():
         action  = 'store_true',
         help    = "print running topology (JSON) and exit"
     )
-    parser.add_argument('-c', '--composev1',
+    parser.add_argument('-c1', '--composev1',
         action  = 'store_true',
         help    = "convert '-' to '_' in service names for compose v1"
+    )
+    parser.add_argument('-c2', '--composev2',
+        action  = 'store_true',
+        help    = "convert '_' to '-' in service names for compose v2"
     )
     parser.add_argument('-d', '--daemon',
         action  = 'store_true',

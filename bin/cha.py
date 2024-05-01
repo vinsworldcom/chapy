@@ -185,7 +185,7 @@ class ComposeTool(object):
                 filter = filter.replace('_', '-')
                 display_service = service.replace('_', '-')
 
-            if not len(self._list(filter)):
+            if not len(self._list(filter)) and not (service == os.environ['CHAPY_HOSTSRV'] or service == 'localhost'):
                 self._log("Service: none matched!", 2)
                 return
             if filter in display_service:

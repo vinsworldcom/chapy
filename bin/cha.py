@@ -176,12 +176,24 @@ class ComposeTool(object):
                 filter = ""
             elif args.filter:
                 filter = args.filter
-            if filter in service:
+
+            display_service = service
+            if args.composev1:
+                filter = filter.replace('-', '_')
+                display_service = service.replace('-', '_')
+            if args.composev2:
+                filter = filter.replace('_', '-')
+                display_service = service.replace('_', '-')
+
+            if not len(self._list(filter)):
+                self._log("Service: none matched!", 2)
+                return
+            if filter in display_service:
                 if args.verbose >= 2:
                     if args.filter:
-                        self._log(f"Service: {service} [Filter = {filter}]", 2)
+                        self._log(f"Service: {display_service} [Filter = {filter}]", 2)
                     else:
-                        self._log(f"Service: {service}", 2)
+                        self._log(f"Service: {display_service}", 2)
                 if args.threads >= 2:
                     x = threading.Thread(target=self._do_hosts, args=(args, stage, service, filter))
                     threads.append(x)
@@ -272,6 +284,14 @@ def main():
     parser.add_argument('-T', '--topology',
         action  = 'store_true',
         help    = "print running topology (JSON) and exit"
+    )
+    parser.add_argument('-c1', '--composev1',
+        action  = 'store_true',
+        help    = "convert '-' to '_' in service names for compose v1"
+    )
+    parser.add_argument('-c2', '--composev2',
+        action  = 'store_true',
+        help    = "convert '_' to '-' in service names for compose v2"
     )
     parser.add_argument('-d', '--daemon',
         action  = 'store_true',

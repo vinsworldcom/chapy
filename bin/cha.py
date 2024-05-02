@@ -145,7 +145,7 @@ class ComposeTool(object):
 
             with open(os.environ['CHAPY_DOCKYML']) as file:
                 services = yaml.load(file, Loader=yaml.FullLoader)
-            if 'services' in services:
+            if services is not None and 'services' in services:
                 for k in services['services']:
                     containers.append(k)
 

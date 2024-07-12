@@ -13,10 +13,13 @@ __version__ = metadata.version('chapy')
 import os
 import sys
 import argparse
-import subprocess
-import threading
+
 import docker
 import json
+import matplotlib.pyplot as plt
+import networkx as nx
+import subprocess
+import threading
 import yaml
 
 sys.dont_write_bytecode = True
@@ -132,6 +135,26 @@ class ComposeTool(object):
                     nets[n] = attrs[n]['IPAddress']
                 topo[c.name] = nets
         return topo
+
+    def graph(self, args):
+        topo = self.topo(args)
+        graph = []
+        for node in topo.keys():
+            for net,ip in topo[node].items():
+                graph.append((node, f"NET_{net}", {"IP": ip}))
+
+        G = nx.Graph()
+        G.add_edges_from(graph)
+        pos = nx.spring_layout(G)
+        color_map = []
+        for node in G:
+            if node.startswith('NET_') :
+                color_map.append('grey')
+            else:
+                color_map.append('green')
+        nx.draw(G, pos, node_color=color_map, with_labels=True)
+        nx.draw_networkx_edge_labels(G, pos)
+        plt.show()
 
     def config(self, args):
         # if os.path.isfile(os.environ['CHAPY_DEFFILE']):
@@ -273,6 +296,10 @@ def main():
         action  = 'store_true',
         help    = "show environment"
     )
+    parser.add_argument('-G', '--graph',
+        action  = 'store_true',
+        help    = "create connectivity graph and exit"
+    )
     parser.add_argument('-L', '--list',
         action  = 'store_true',
         help    = "list running container names and exit"
@@ -339,6 +366,10 @@ def main():
 
     if args.topology:
         print(json.dumps(composeTool.topo(args), indent=int(os.environ['CHAPY_INDENTS'])))
+        exit()
+
+    if args.graph:
+        composeTool.graph(args)
         exit()
 
     if args.config:

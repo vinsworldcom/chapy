@@ -139,20 +139,21 @@ class ComposeTool(object):
     def graph(self, args):
         topo = self.topo(args)
         graph = []
+        nodes = {}
+        nets = {}
+
         for node in topo.keys():
+            nodes[node] = 1
             for net,ip in topo[node].items():
-                graph.append((node, f"NET_{net}", {"IP": ip}))
+                name = f"NET:{net}"
+                nets[name] = 1
+                graph.append((node, name, {"IP": ip}))
 
         G = nx.Graph()
         G.add_edges_from(graph)
         pos = nx.spring_layout(G)
-        color_map = []
-        for node in G:
-            if node.startswith('NET_') :
-                color_map.append('grey')
-            else:
-                color_map.append('green')
-        nx.draw(G, pos, node_color=color_map, with_labels=True)
+        nx.draw_networkx(G, pos, node_color='green', nodelist=list(nodes.keys()), node_shape='o', with_labels=True)
+        nx.draw_networkx(G, pos, node_color='grey', nodelist=list(nets.keys()), node_shape='s', with_labels=True)
         nx.draw_networkx_edge_labels(G, pos)
         plt.show()
 

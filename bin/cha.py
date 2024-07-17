@@ -60,6 +60,8 @@ class ComposeTool(object):
             'CHAPY_HOSTSRV': "{{HOST}}",
             'CHAPY_INDENTS': "4",
             'CHAPY_ISPACER': "=",
+            'CHAPY_GPHFONT': "8",
+            'CHAPY_GPHNODE': "200",
             'COMPOSE_PROJECT_NAME': ""
         }
         myenv['CHAPY_OUTHEAD'] = myenv['CHAPY_ISPACER'] + "> "
@@ -152,9 +154,11 @@ class ComposeTool(object):
         G = nx.Graph()
         G.add_edges_from(graph)
         pos = nx.spring_layout(G)
-        nx.draw_networkx(G, pos, node_color='green', nodelist=list(nodes.keys()), node_shape='o', with_labels=True)
-        nx.draw_networkx(G, pos, node_color='grey', nodelist=list(nets.keys()), node_shape='s', with_labels=True)
-        nx.draw_networkx_edge_labels(G, pos)
+        nx.draw_networkx(G, pos, node_color='green', font_size=int(os.environ['CHAPY_GPHFONT']), with_labels=True,
+                         nodelist=list(nodes.keys()), node_shape='o', node_size=int(os.environ['CHAPY_GPHNODE']))
+        nx.draw_networkx(G, pos, node_color='grey', font_size=int(os.environ['CHAPY_GPHFONT']), with_labels=True,
+                         nodelist=list(nets.keys()), node_shape='s', node_size=int(os.environ['CHAPY_GPHNODE']))
+        nx.draw_networkx_edge_labels(G, pos, font_size=(int(os.environ['CHAPY_GPHFONT'])-2))
         plt.show()
 
     def config(self, args):

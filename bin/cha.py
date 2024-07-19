@@ -131,11 +131,27 @@ class ComposeTool(object):
         topo = {}
         for c in self.containers:
             if args.filter == "" or args.filter in c.name:
-                attrs = c.attrs['NetworkSettings']['Networks']
-                nets = {}
-                for n in attrs:
-                    nets[n] = attrs[n]['IPAddress']
-                topo[c.name] = nets
+                info = {}
+
+                networks = c.attrs['NetworkSettings']['Networks']
+                info['Networks'] = {}
+                for n in networks:
+                    info['Networks'][n] = networks[n]['IPAddress']
+
+                if args.ports:
+                    ports = c.attrs['NetworkSettings']['Ports']
+                    info['Ports'] = {}
+                    for n in ports:
+                        if n in ports and ports[n] is not None:
+                            portarray = []
+                            for p in ports[n]:
+                                portarray.append(f"{p['HostIp']}:{p['HostPort']}")
+                            info['Ports'][n] = portarray
+                        else:
+                            info['Ports'][n] = None
+
+                topo[c.name] = info
+
         return topo
 
     def graph(self, args):
@@ -146,7 +162,7 @@ class ComposeTool(object):
 
         for node in topo.keys():
             nodes[node] = 1
-            for net,ip in topo[node].items():
+            for net,ip in topo[node]['Networks'].items():
                 name = f"NET:{net}"
                 nets[name] = 1
                 graph.append((node, name, {"IP": ip}))
@@ -313,6 +329,10 @@ def main():
         action  = 'store_true',
         help    = "list stages in config file"
     )
+    parser.add_argument('-P', '--ports',
+        action  = 'store_true',
+        help    = "Include ports in topology"
+    )
     parser.add_argument('-T', '--topology',
         action  = 'store_true',
         help    = "print running topology (JSON) and exit"
@@ -369,7 +389,7 @@ def main():
             print(c)
         exit()
 
-    if args.topology:
+    if args.topology or args.ports:
         print(json.dumps(composeTool.topo(args), indent=int(os.environ['CHAPY_INDENTS'])))
         exit()
 

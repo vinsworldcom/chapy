@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name             = 'chapy',
-    version          = '1.3',
+    version          = '1.4',
     description      = 'Docker Compose Helper and Automation Tool.',
     url              = 'https://github.com/vinsworldcom/chapy.git',
     author           = 'Michael Vincent',
@@ -12,6 +12,8 @@ setup(
     install_requires = [
         'importlib-metadata ~= 1.0 ; python_version < "3.8"',
         'docker',
+        'matplotlib',
+        'networkx',
         'pyyaml'
     ],
     scripts          = [

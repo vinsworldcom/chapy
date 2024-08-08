@@ -13,10 +13,13 @@ __version__ = metadata.version('chapy')
 import os
 import sys
 import argparse
-import subprocess
-import threading
+
 import docker
 import json
+import matplotlib.pyplot as plt
+import networkx as nx
+import subprocess
+import threading
 import yaml
 
 sys.dont_write_bytecode = True
@@ -57,6 +60,8 @@ class ComposeTool(object):
             'CHAPY_HOSTSRV': "{{HOST}}",
             'CHAPY_INDENTS': "4",
             'CHAPY_ISPACER': "=",
+            'CHAPY_GPHFONT': "8",
+            'CHAPY_GPHNODE': "200",
             'COMPOSE_PROJECT_NAME': ""
         }
         myenv['CHAPY_OUTHEAD'] = myenv['CHAPY_ISPACER'] + "> "
@@ -126,12 +131,51 @@ class ComposeTool(object):
         topo = {}
         for c in self.containers:
             if args.filter == "" or args.filter in c.name:
-                attrs = c.attrs['NetworkSettings']['Networks']
-                nets = {}
-                for n in attrs:
-                    nets[n] = attrs[n]['IPAddress']
-                topo[c.name] = nets
+                info = {}
+
+                networks = c.attrs['NetworkSettings']['Networks']
+                info['Networks'] = {}
+                for n in networks:
+                    info['Networks'][n] = networks[n]['IPAddress']
+
+                if args.ports:
+                    ports = c.attrs['NetworkSettings']['Ports']
+                    info['Ports'] = {}
+                    for n in ports:
+                        if n in ports and ports[n] is not None:
+                            portarray = []
+                            for p in ports[n]:
+                                portarray.append(f"{p['HostIp']}:{p['HostPort']}")
+                            info['Ports'][n] = portarray
+                        else:
+                            info['Ports'][n] = None
+
+                topo[c.name] = info
+
         return topo
+
+    def graph(self, args):
+        topo = self.topo(args)
+        graph = []
+        nodes = {}
+        nets = {}
+
+        for node in topo.keys():
+            nodes[node] = 1
+            for net,ip in topo[node]['Networks'].items():
+                name = f"NET:{net}"
+                nets[name] = 1
+                graph.append((node, name, {"IP": ip}))
+
+        G = nx.Graph()
+        G.add_edges_from(graph)
+        pos = nx.spring_layout(G)
+        nx.draw_networkx(G, pos, node_color='green', font_size=int(os.environ['CHAPY_GPHFONT']), with_labels=True,
+                         nodelist=list(nodes.keys()), node_shape='o', node_size=int(os.environ['CHAPY_GPHNODE']))
+        nx.draw_networkx(G, pos, node_color='grey', font_size=int(os.environ['CHAPY_GPHFONT']), with_labels=True,
+                         nodelist=list(nets.keys()), node_shape='s', node_size=int(os.environ['CHAPY_GPHNODE']))
+        nx.draw_networkx_edge_labels(G, pos, font_size=(int(os.environ['CHAPY_GPHFONT'])-2))
+        plt.show()
 
     def config(self, args):
         # if os.path.isfile(os.environ['CHAPY_DEFFILE']):
@@ -273,6 +317,10 @@ def main():
         action  = 'store_true',
         help    = "show environment"
     )
+    parser.add_argument('-G', '--graph',
+        action  = 'store_true',
+        help    = "create connectivity graph and exit"
+    )
     parser.add_argument('-L', '--list',
         action  = 'store_true',
         help    = "list running container names and exit"
@@ -280,6 +328,10 @@ def main():
     parser.add_argument('-S', '--list-stages',
         action  = 'store_true',
         help    = "list stages in config file"
+    )
+    parser.add_argument('-P', '--ports',
+        action  = 'store_true',
+        help    = "Include ports in topology"
     )
     parser.add_argument('-T', '--topology',
         action  = 'store_true',
@@ -337,8 +389,12 @@ def main():
             print(c)
         exit()
 
-    if args.topology:
+    if args.topology or args.ports:
         print(json.dumps(composeTool.topo(args), indent=int(os.environ['CHAPY_INDENTS'])))
+        exit()
+
+    if args.graph:
+        composeTool.graph(args)
         exit()
 
     if args.config:

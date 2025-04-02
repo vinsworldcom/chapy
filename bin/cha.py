@@ -183,12 +183,12 @@ class ComposeTool(object):
     def config(self, args):
         # if os.path.isfile(os.environ['CHAPY_DEFFILE']):
             # print(f"file exists, will not overwrite `{os.environ['CHAPY_DEFFILE']}'", file=sys.stderr)
-            # exit(1)
+            # sys.exit(1)
         containers = self.names(args)
         if len(containers) == 0:
             if not os.path.isfile(os.environ['CHAPY_DOCKYML']):
                 print(f"no running containers and cannot find `{os.environ['CHAPY_DOCKYML']}'", file=sys.stderr)
-                exit(1)
+                sys.exit(1)
 
             with open(os.environ['CHAPY_DOCKYML']) as file:
                 services = yaml.load(file, Loader=yaml.FullLoader)
@@ -390,19 +390,19 @@ def main():
     if args.list:
         for c in composeTool.names(args):
             print(c)
-        exit()
+        sys.exit(0)
 
     if args.topology or args.ports:
         print(json.dumps(composeTool.topo(args), indent=int(os.environ['CHAPY_INDENTS'])))
-        exit()
+        sys.exit(0)
 
     if args.graph:
         composeTool.graph(args)
-        exit()
+        sys.exit(0)
 
     if args.config:
         print(json.dumps(composeTool.config(args), indent=int(os.environ['CHAPY_INDENTS'])))
-        exit()
+        sys.exit(0)
 
     if args.dryrun:
         args.verbose = 2
@@ -419,15 +419,15 @@ def main():
             if args.list_stages:
                 for stage in config:
                     print(stage)
-                exit()
+                sys.exit(0)
 
         except json.decoder.JSONDecodeError as e:
             print(f"JSON decode error in `{filename}': {e}", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
     except FileNotFoundError:
         if len(args.argv) == 0:
             print(f"No command provided and default file not found: `{filename}'", file=sys.stderr)
-            exit(1)
+            sys.exit(1)
         cmd = []
         svc = {}
         args.stages = ["run"]

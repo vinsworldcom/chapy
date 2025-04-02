@@ -25,6 +25,16 @@ environment variables can be overriden in the `.env` file.  To see the
 effective environment variables for the current project, use the
 `--environment` option.
 
+Environment variables in the `.env` file can also direct `cha.py` (via the
+Python Docker module) on how to find / communicate with the Docker host.  For
+example:
+
+```sh
+DOCKER_CERT_PATH=/Users/me/.docker/certs
+DOCKER_HOST=https://127.0.0.1:2376
+DOCKER_TLS_VERIFY=1
+```
+
 The `cha.py` tool will look for `CHAPY_DEFFILE` (config.json) in the current
 directory to find the commands to run.  If a configuration file is not
 specified on the command line and the `CHAPY_DEFFILE` file is not found in the

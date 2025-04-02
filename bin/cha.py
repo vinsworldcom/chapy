@@ -79,13 +79,16 @@ class ComposeTool(object):
             if k.startswith("DOCKER_"):
                 myenv[k] = os.environ[k]
 
-        # args.environment print here in case bad DOCKER_* variable
-        # which errors out on `docker.from_env()`
         if args.environment:
             print(json.dumps(myenv, sort_keys=True, indent=int(os.environ['CHAPY_INDENTS'])))
-            exit()
+            sys.exit(0)
 
-        client = docker.from_env()
+        try:
+            client = docker.from_env()
+        except docker.errors.DockerException as e:
+            print(f"Error contacting Docker for `docker.from_env()`: {e}", file=sys.stderr)
+            sys.exit(1)
+
         args = {}
         if os.environ['COMPOSE_PROJECT_NAME']:
             args = {'name': os.environ['COMPOSE_PROJECT_NAME']}

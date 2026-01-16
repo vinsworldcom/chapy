@@ -3,3 +3,4 @@ build/*
 *__pycache__
 tags
 .env
+**/config.json

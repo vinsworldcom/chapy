@@ -14,13 +14,14 @@ import os
 import sys
 import argparse
 
-import docker
 import json
-import matplotlib.pyplot as plt
-import networkx as nx
 import subprocess
 import threading
 import yaml
+
+import docker
+import matplotlib.pyplot as plt
+import networkx as nx
 
 sys.dont_write_bytecode = True
 
@@ -48,9 +49,11 @@ class _Version(argparse.Action):
         sys.exit(0)
 
 
-class ComposeTool(object):
+class ComposeTool:
+    """The Docker Compose Helper object."""
 
     def __init__(self, args):
+        """Create the Docker Compose Helper object."""
 
         # First defaults
         myenv = {
@@ -95,27 +98,30 @@ class ComposeTool(object):
         self.containers = client.containers.list(filters=args)
         self.env = myenv
 
-    def _envfile(self, output):
+    def _envfile(self, curr_env: dict) -> dict:
+        """Append any environment file configurations to current environment."""
         try:
-            f = open(ENVFILE, "r")
-            for line in f:
-                if line.startswith("#") or not line.strip():
-                    continue
-                k,v = line.strip('\n').split("=", 1)
-                if k not in os.environ:
-                    output[k] = os.environ[k] = v
+            with open(ENVFILE, "r") as f:
+                for line in f:
+                    if line.startswith("#") or not line.strip():
+                        continue
+                    k,v = line.strip('\n').split("=", 1)
+                    if k not in os.environ:
+                        curr_env[k] = os.environ[k] = v
         except FileNotFoundError:
             print(".env file not found", file=sys.stderr)
-        return output
+        return curr_env
 
-    def _list(self, filter=""):
+    def _list(self, filt: str="") -> list:
+        """List container names"""
         cs = []
         for c in self.containers:
-            if filter == "" or filter in c.name:
+            if filt == "" or filt in c.name:
                 cs.append(c)
         return cs
 
-    def names(self, args):
+    def names(self, args: argparse.Namespace) -> list:
+        """Return list of container names."""
         names = []
         for c in self.containers:
             if args.filter == "" or args.filter in c.name:
@@ -124,13 +130,14 @@ class ComposeTool(object):
                 else:
                     names.append(c.name)
         if args.verbose >= 2:
-            if not len(self.containers):
+            if not self.containers:
                 print("no running containers found")
-            elif not len(names):
+            elif not names:
                 print(f"no running containers found matching filter: `{args.filter}'")
         return sorted(names)
 
-    def topo(self, args):
+    def topo(self, args: argparse.Namespace) -> dict:
+        """Return dict of container names and info."""
         topo = {}
         for c in self.containers:
             if args.filter == "" or args.filter in c.name:
@@ -157,13 +164,14 @@ class ComposeTool(object):
 
         return topo
 
-    def graph(self, args):
+    def graph(self, args: argparse.Namespace) -> None:
+        """Output NetworkX graph object of container / network connectivity."""
         topo = self.topo(args)
         graph = []
         nodes = {}
         nets = {}
 
-        for node in topo.keys():
+        for node in topo:
             nodes[node] = 1
             for net,ip in topo[node]['Networks'].items():
                 name = f"NET:{net}"
@@ -180,7 +188,8 @@ class ComposeTool(object):
         nx.draw_networkx_edge_labels(G, pos, font_size=(int(os.environ['CHAPY_GPHFONT'])-2))
         plt.show()
 
-    def config(self, args):
+    def config(self, args: argparse.Namespace) -> dict:
+        """Create example config."""
         # if os.path.isfile(os.environ['CHAPY_DEFFILE']):
             # print(f"file exists, will not overwrite `{os.environ['CHAPY_DEFFILE']}'", file=sys.stderr)
             # sys.exit(1)
@@ -204,71 +213,77 @@ class ComposeTool(object):
             config[stage] = services
         return config
 
-    def run(self, args, config):
+    def run(self, args: argparse.Namespace, config: dict) -> None:
+        """Execute the commands."""
         self._do_stages(args, config)
 
-    def _do_stages(self, args, config):
+    def _do_stages(self, args: argparse.Namespace, config: dict):
         for stage in args.stages:
-            if args.verbose >= 2: self._log(f"Stage: {stage}")
+            if args.verbose >= 2:
+                self._log(f"Stage: {stage}")
             if stage in config:
                 self._do_services(args, config[stage])
             else:
                 print(f"stage not found: `{stage}'", file=sys.stderr)
 
-    def _do_services(self, args, stage):
+    def _do_services(self, args: argparse.Namespace, stage: dict) -> None:
         threads = []
         for service in stage:
-            filter = service
+            filt = service
             if service == os.environ['CHAPY_ALLSERV']:
-                filter = ""
+                filt = ""
             elif args.filter:
-                filter = args.filter
+                filt = args.filter
 
             display_service = service
             if args.composev1:
-                filter = filter.replace('-', '_')
+                filt = filt.replace('-', '_')
                 display_service = service.replace('-', '_')
             if args.composev2:
-                filter = filter.replace('_', '-')
+                filt = filt.replace('_', '-')
                 display_service = service.replace('_', '-')
 
-            if not len(self._list(filter)) and not (service == os.environ['CHAPY_HOSTSRV'] or service == 'localhost'):
+            if not self._list(filt) and service not in [os.environ['CHAPY_HOSTSRV'], 'localhost']:
                 self._log("Service: none matched!", 2)
                 return
-            if filter in display_service:
+            if filt in display_service:
                 if args.verbose >= 2:
                     if args.filter:
-                        self._log(f"Service: {display_service} [Filter = {filter}]", 2)
+                        self._log(f"Service: {display_service} [Filter = {filt}]", 2)
                     else:
                         self._log(f"Service: {display_service}", 2)
                 if args.threads >= 2:
-                    x = threading.Thread(target=self._do_hosts, args=(args, stage, service, filter))
+                    x = threading.Thread(target=self._do_hosts, args=(args, stage, service, filt))
                     threads.append(x)
                     x.start()
                 else:
-                    self._do_hosts(args, stage, service, filter)
+                    self._do_hosts(args, stage, service, filt)
         if args.threads >= 2:
             for t in threads:
                 t.join()
 
-    def _do_hosts(self, args, stage, service, filter):
-        if service == os.environ['CHAPY_HOSTSRV'] or service == 'localhost':
+    def _do_hosts(self, args: argparse.Namespace, stage: dict, service: str, filt: str) -> None:
+        if service in [os.environ['CHAPY_HOSTSRV'], 'localhost']:
             for cmd in stage[service]:
-                if args.verbose >= 2: self._log(f"Command: {cmd}", 6)
+                if args.verbose >= 2:
+                    self._log(f"Command: {cmd}", 6)
                 if args.daemon:
                     try:
                         subprocess.Popen(cmd.split(" "))
                     except subprocess.CalledProcessError as e:
-                        if args.verbose >= 1: print(e)
+                        if args.verbose >= 1:
+                            print(e)
                 else:
                     try:
                         output = subprocess.check_output(cmd.split(" "), stderr=subprocess.STDOUT, shell=True)
-                        if args.verbose >= 1: print(output.decode('utf8').strip('\n'))
+                        if args.verbose >= 1:
+                            print(output.decode('utf8').strip('\n'))
                     except subprocess.CalledProcessError as e:
-                        if args.verbose >= 1: print(e.output.decode('utf8').strip('\n'))
+                        if args.verbose >= 1:
+                            print(e.output.decode('utf8').strip('\n'))
         else:
             threads = []
-            for c in self._list(filter):
+            for c in self._list(filt):
                 if args.threads >= 1:
                     x = threading.Thread(target=self._do_commands, args=(args, stage, service, c))
                     threads.append(x)
@@ -279,24 +294,34 @@ class ComposeTool(object):
                 for t in threads:
                     t.join()
 
-    def _do_commands(self, args, stage, service, c):
-            if args.verbose >= 2: self._log(f"Container: {c.name}", 4)
-            for cmd in stage[service]:
-                cmd = self._parse_cmd(cmd)
-                if args.verbose >= 2: self._log(f"Command: {cmd}", 6)
-                if args.dryrun: return
-                if args.daemon:
-                    output = c.exec_run(cmd, detach=True)
-                else:
-                    output = c.exec_run(['sh', '-c', cmd])
-                    if args.verbose >= 1: print(output.output.decode('utf8').strip('\n'))
+    def _do_commands(self,
+        args: argparse.Namespace,
+        stage: dict,
+        service: str,
+        c: docker.models.containers.Container
+    ) -> None:
+        if args.verbose >= 2:
+            self._log(f"Container: {c.name}", 4)
+        for cmd in stage[service]:
+            cmd = self._parse_cmd(cmd)
+            if args.verbose >= 2:
+                self._log(f"Command: {cmd}", 6)
+            if args.dryrun:
+                return
+            if args.daemon:
+                output = c.exec_run(cmd, detach=True)
+            else:
+                output = c.exec_run(['sh', '-c', cmd])
+                if args.verbose >= 1:
+                    print(output.output.decode('utf8').strip('\n'))
 
-    def _parse_cmd(self, cmd):
+    def _parse_cmd(self, cmd: str) -> str:
+        """Complete command by replacing any template variables."""
         for var in os.environ:
             cmd = cmd.replace("{{" + var + "}}", os.environ[var])
         return cmd
 
-    def _log(self, msg, indent=0):
+    def _log(self, msg: str, indent: int=0) -> None:
         print(os.environ['CHAPY_ISPACER']*indent + os.environ['CHAPY_OUTHEAD'] + msg)
 
 
@@ -413,17 +438,17 @@ def main():
     config = {}
 
     try:
-        file = open(filename, "r")
-        try:
-            config = json.load(file)
-            if args.list_stages:
-                for stage in config:
-                    print(stage)
-                sys.exit(0)
+        with open(filename, "r") as file:
+            try:
+                config = json.load(file)
+                if args.list_stages:
+                    for stage in config:
+                        print(stage)
+                    sys.exit(0)
 
-        except json.decoder.JSONDecodeError as e:
-            print(f"JSON decode error in `{filename}': {e}", file=sys.stderr)
-            sys.exit(1)
+            except json.decoder.JSONDecodeError as e:
+                print(f"JSON decode error in `{filename}': {e}", file=sys.stderr)
+                sys.exit(1)
     except FileNotFoundError:
         if len(args.argv) == 0:
             print(f"No command provided and default file not found: `{filename}'", file=sys.stderr)

@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chapy"
+version = "1.7"
+description = "Docker Compose Helper and Automation Tool."
+authors = [{name = "Michael Vincent", email = "vin@vinsworld.com"}]
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+dependencies = [
+    "docker",
+    "matplotlib",
+    "networkx",
+    "pyyaml"
+]
+
+[project.urls]
+homepage = "https://github.com/vinsworldcom/chapy.git"
+
+[tool.setuptools]
+script-files = [
+    "bin/cha.py",
+]
